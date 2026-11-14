@@ -3,68 +3,129 @@
      opens it with its own internet connection. The pattern lives only in the URL
      fragment, which browsers never send to the server. Format v1 (main/export.c):
        #1.<brand key>.<n>.<code>:<rrggbb>,<code>:<rrggbb>,...<.><cells>
-     cells: n*n chars, row-major; '0' = empty, CELL_CHARS[k] = k-th listed colour. -->
+     cells: n*n chars, row-major; '0' = empty, CELL_CHARS[k] = k-th listed colour.
+     Link previews (og:*) can't see the fragment, so they show one fixed card (og.png).
+     Font: Chicago Kare (MIT, CHICAGO-KARE-LICENSE.txt), the device's UI font. It is
+     built on a 16 px grid, so every size here is a multiple of 16 to stay crisp. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bead Pattern</title>
+<meta name="description" content="A pattern from a bead pad: the board, its colours and how many beads of each to buy.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bead Pad">
+<meta property="og:title" content="Bead Pattern">
+<meta property="og:description" content="Open it to see the board, the colours and how many beads of each to buy.">
+<meta property="og:url" content="https://teddygavi.github.io/pixel-painter-export/">
+<meta property="og:image" content="https://teddygavi.github.io/pixel-painter-export/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A pixel mushroom made of beads, next to the words Bead Pattern">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23141412' d='M2 0h4v1H2zM1 1h6v1H1zM0 2h3v1H0zM5 2h3v1H5zM0 3h2v2H0zM6 3h2v2H6zM0 5h3v1H0zM5 5h3v1H5zM1 6h6v1H1zM2 7h4v1H2z'/%3E%3C/svg%3E">
+<link rel="preload" href="ChicagoKare-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+  @font-face { font-family: "Chicago"; src: url("ChicagoKare-Regular.woff2") format("woff2"); font-display: block; }
   :root {
-    --bg: #f6f5f2; --card: #ffffff; --ink: #1d1d1f; --muted: #6b6b70; --line: #e3e1dc;
-    --accent: #2f5bd3; --accent-ink: #ffffff; --board: #ecebe7; --hole: #d9d7d1;
+    /* --tint and --panel are re-set from the pattern's most-used bead (applyTint) */
+    --tint: #d6dcc9; --panel: #fafbf6; --ink: #141412; --muted: #6a6a63; --rule: #14141224;
+    --board: #ecebe7; --hole: #d9d7d1;
+    --font: "Chicago", "Geneva", "Helvetica Neue", sans-serif;
+    --cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1H0zM0 1h2v1H0zM0 2h3v1H0zM0 3h4v1H0zM0 4h5v1H0zM0 5h6v1H0zM0 6h7v1H0zM0 7h8v1H0zM0 8h5v1H0zM0 9h2v1H0zM3 9h2v1H3zM0 10h1v1H0zM4 10h2v1H4zM4 11h2v1H4z' fill='%23000'/%3E%3Cpath d='M1 2h1v1H1zM1 3h2v1H1zM1 4h3v1H1zM1 5h4v1H1zM1 6h5v1H1zM1 7h3v1H1z' fill='%23fff'/%3E%3C/svg%3E") 0 0, auto;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #141416; --card: #1e1e21; --ink: #f2f2f4; --muted: #9a9aa2; --line: #2e2e33;
-      --accent: #7aa2ff; --accent-ink: #0d1530; --board: #2a2a2e; --hole: #3a3a40;
+      --tint: #1b1d18; --panel: #22241f; --ink: #ecebe4; --muted: #a2a198; --rule: #ecebe41f;
+      --board: #2a2a2e; --hole: #3a3a40;
     }
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  }
-  main { max-width: 520px; margin: 0 auto; padding: 20px 16px 40px; }
-  header h1 { font-size: 22px; margin: 0; }
-  header p { margin: 2px 0 16px; color: var(--muted); font-size: 14px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
-  canvas#pattern { display: block; width: 100%; height: auto; border-radius: 8px; }
-  .actions { display: flex; gap: 8px; margin: 12px 0 20px; flex-wrap: wrap; }
-  button {
-    flex: 1 1 140px; font: inherit; font-weight: 600; padding: 12px 14px; border-radius: 10px;
-    border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer;
-  }
-  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  h2 { font-size: 16px; margin: 0 0 8px; display: flex; justify-content: space-between; }
-  h2 span { color: var(--muted); font-weight: 400; }
+  html { cursor: var(--cursor); }
+  body { margin: 0; background: var(--tint); color: var(--ink); font: 16px/1.5 var(--font); }
+  main { max-width: 480px; margin: 0 auto; padding: 16px 16px 32px; }
+
+  .brandbar { display: flex; align-items: center; gap: 8px; }
+  .brandbar svg { width: 16px; height: 16px; }
+  h1 { font: 32px/1.1 var(--font); margin: 24px 0 0; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+
+  /* window panels: square, 2px ink border, hard offset shadow, striped title bar */
+  .win { background: var(--panel); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); margin: 16px 0; }
+  .titlebar { height: 24px; border-bottom: 2px solid var(--ink); padding: 4px; display: flex; align-items: center;
+              justify-content: center; background: repeating-linear-gradient(var(--panel) 0 3px, var(--ink) 3px 4px);
+              background-clip: content-box; }
+  .titlebar b { background: var(--panel); padding: 0 8px; font-weight: normal; line-height: 16px; }
+  .win .body { padding: 12px; }
+  canvas#pattern { display: block; width: 100%; height: auto; cursor: inherit; }
+  .hint { color: var(--muted); text-align: center; margin-top: 8px; }
+
+  .actions { display: flex; gap: 12px; margin: 24px 0 8px; }
+  button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; font: 16px var(--font);
+           padding: 10px 8px; border: 2px solid var(--ink); border-radius: 0; background: var(--panel); color: var(--ink);
+           box-shadow: 3px 3px 0 var(--ink); cursor: inherit; -webkit-tap-highlight-color: transparent; }
+  button:active { transform: translate(3px, 3px); box-shadow: none; }
+  button.primary { background: var(--ink); color: var(--panel); }
+  button svg { width: 16px; height: 16px; flex: none; }
+
   ol { list-style: none; margin: 0; padding: 0; }
-  li { display: grid; grid-template-columns: 28px 30px 1fr auto; align-items: center; gap: 10px;
-       padding: 8px 0; border-top: 1px solid var(--line); }
+  li { display: grid; grid-template-columns: 24px 24px auto 1fr auto; align-items: center; gap: 10px;
+       padding: 8px 12px; border-top: 1px solid var(--rule); }
   li:first-child { border-top: 0; }
-  .key { color: var(--muted); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
-  .sw { width: 28px; height: 28px; border-radius: 7px; box-shadow: inset 0 0 0 1px #0002; }
-  .code { font-weight: 700; }
-  .name { color: var(--muted); font-size: 14px; }
-  .count { font-weight: 700; font-variant-numeric: tabular-nums; }
-  .empty { text-align: center; color: var(--muted); padding: 40px 12px; }
-  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink);
-           color: var(--bg); padding: 8px 14px; border-radius: 999px; font-size: 14px; opacity: 0;
-           transition: opacity .2s; pointer-events: none; }
+  .key { color: var(--muted); text-align: right; }
+  .sw { width: 24px; height: 24px; border: 1px solid var(--ink); }
+  .name { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .total { display: flex; justify-content: space-between; padding: 8px 12px; border-top: 2px solid var(--ink); }
+  .empty { text-align: center; color: var(--muted); padding: 32px 16px; }
+  footer { text-align: center; color: var(--muted); margin-top: 32px; }
+  footer svg { width: 14px; height: 12px; vertical-align: -1px; margin-right: 4px; }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: var(--panel);
+           border: 2px solid var(--ink); padding: 6px 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   .toast.show { opacity: 1; }
+
+  /* wide screens: pattern large on the left, a sparse column on the right */
+  @media (min-width: 900px) {
+    main { max-width: 1180px; padding: 32px 40px 48px; }
+    #app { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr); gap: 0 56px; align-items: start; }
+    #app > h1, #app > .sub { grid-column: 1 / -1; }
+    .left { padding-top: 32px; }
+    .left .win { margin: 0; }
+    h1 { font-size: 48px; margin-top: 32px; }
+  }
 </style>
 </head>
 <body>
 <main>
-  <header><h1 id="title">Bead pattern</h1><p id="sub"></p></header>
+  <div class="brandbar"><span data-icon="bead"></span><span>Bead Pad</span></div>
   <div id="app"></div>
 </main>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status"></div>
 <script src="names.js" onerror="window.BEAD_NAMES={}"></script>
 <script>
 "use strict";
 const CELL_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
 const BRANDS = { hama: "Hama", artkal: "Artkal S", miyuki: "Miyuki Delica" };
+const FONT = '"Chicago", "Geneva", sans-serif';
+const DARK_MQ = matchMedia("(prefers-color-scheme: dark)");
+const CALM = matchMedia("(prefers-reduced-motion: reduce)");
+
+// 1-bit pixel icons: '#' = ink
+const ICONS = {
+  bead: ["..####..", ".######.", "###..###", "##....##", "##....##", "###..###", ".######.", "..####.."],
+  disk: ["#######.", "#.##.#.#", "#.##.#.#", "#.....##", "#......#", "#.####.#", "#.####.#", "########"],
+  clip: ["..##..", "######", "#....#", "#.##.#", "#....#", "#.##.#", "#....#", "######"],
+  heart: [".##.##.", "#######", "#######", ".#####.", "..###..", "...#..."],
+};
+function icon(name) {
+  const rows = ICONS[name];
+  let d = "";
+  rows.forEach((r, y) => [...r].forEach((c, x) => { if (c === "#") d += `M${x} ${y}h1v1H${x}z`; }));
+  return `<svg viewBox="0 0 ${rows[0].length} ${rows.length}" shape-rendering="crispEdges" aria-hidden="true">` +
+         `<path d="${d}" fill="currentColor"/></svg>`;
+}
+function icons(root) { root.querySelectorAll("[data-icon]").forEach(e => e.outerHTML = icon(e.dataset.icon)); }
 
 function parse(hash) {
   const parts = decodeURIComponent(hash.replace(/^#/, "")).split(".");
@@ -93,6 +154,26 @@ function luma(hex) {
   const v = parseInt(hex.slice(1), 16);
   return (0.299 * (v >> 16) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255)) / 255;
 }
+function hueSat(hex) {
+  const v = parseInt(hex.slice(1), 16);
+  const r = (v >> 16) / 255, g = ((v >> 8) & 255) / 255, b = (v & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return [0, 0];
+  const h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, d / (1 - Math.abs(2 * l - 1))];
+}
+
+// Background and panel tints: the most-used bead colour, heavily desaturated.
+function tints(leg, dark) {
+  const [h, s0] = leg.length ? hueSat(leg[0].rgb) : [80, 0.25];   // no beads: soft sage
+  const s = Math.min(s0, 0.7);
+  return dark ? { tint: `hsl(${h} ${s * 22}% 13%)`, panel: `hsl(${h} ${s * 10}% 18%)` }
+              : { tint: `hsl(${h} ${s * 34}% 86%)`, panel: `hsl(${h} ${s * 25}% 97.5%)` };
+}
+function applyTint(leg) {
+  const t = tints(leg, DARK_MQ.matches), st = document.documentElement.style;
+  st.setProperty("--tint", t.tint); st.setProperty("--panel", t.panel);
+}
 
 // Legend order: most beads first; key numbers follow that order.
 function legend(p) {
@@ -101,55 +182,89 @@ function legend(p) {
     .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code))
     .map((c, j) => ({ ...c, key: j + 1 }));
 }
+const total = leg => leg.reduce((s, c) => s + c.count, 0);
 
-// Draw the pattern (and optionally the legend, for the saved image) on a canvas.
-function draw(canvas, p, leg, withLegend) {
-  const css = getComputedStyle(document.documentElement);
-  const board = withLegend ? "#ecebe7" : css.getPropertyValue("--board").trim();
-  const hole = withLegend ? "#d9d7d1" : css.getPropertyValue("--hole").trim();
-  const cell = 64, pad = 16, size = p.n * cell + pad * 2;
+// The board, drawn at (ox, oy) in 64 px cells. t = drop-in progress (>= 1: all beads in).
+const CELL = 64, PAD = 16;
+const boardSize = p => p.n * CELL + PAD * 2;
+function drawBoard(x, ox, oy, p, leg, t, board, hole) {
+  const size = boardSize(p), N = p.grid.length;
   const keyOf = {}; leg.forEach(c => keyOf[c.idx] = c.key);
-  const rowH = 44, legH = withLegend ? 72 + leg.length * rowH + 24 : 0;
-  canvas.width = size; canvas.height = size + legH;
-  const x = canvas.getContext("2d");
-  if (withLegend) { x.fillStyle = "#ffffff"; x.fillRect(0, 0, canvas.width, canvas.height); }
-  x.fillStyle = board; x.beginPath(); x.roundRect(0, 0, size, size, 16); x.fill();
+  x.fillStyle = board; x.beginPath(); x.roundRect(ox, oy, size, size, 16); x.fill();
   p.grid.forEach((ci, i) => {
-    const cx = pad + (i % p.n) * cell + cell / 2, cy = pad + Math.floor(i / p.n) * cell + cell / 2;
-    if (ci < 0) {                       // empty peg
-      x.fillStyle = hole; x.beginPath(); x.arc(cx, cy, cell * 0.12, 0, 7); x.fill(); return;
-    }
-    const c = p.colors[ci], r = cell * 0.44;
-    x.fillStyle = c.rgb; x.beginPath(); x.roundRect(cx - r, cy - r, 2 * r, 2 * r, r * 0.45); x.fill();
+    const cx = ox + PAD + (i % p.n) * CELL + CELL / 2, cy = oy + PAD + Math.floor(i / p.n) * CELL + CELL / 2;
+    // each bead falls for a quarter of the run, started in reading order with a little jitter
+    const start = (i / N) * 0.72 + ((i * 7919) % 13) / 13 * 0.03;
+    const u = t >= 1 ? 1 : Math.min(1, Math.max(0, (t - start) / 0.25));
+    if (ci < 0 || u < 1) { x.fillStyle = hole; x.beginPath(); x.arc(cx, cy, CELL * 0.12, 0, 7); x.fill(); }
+    if (ci < 0 || u <= 0) return;
+    const fall = u < 0.7 ? (u / 0.7) ** 2 : 1 - Math.sin((u - 0.7) / 0.3 * Math.PI) * 0.08;
+    const y = cy - (1 - fall) * CELL * 2.2;
+    x.globalAlpha = Math.min(1, u * 3);
+    const c = p.colors[ci], r = CELL * 0.44;
+    x.fillStyle = c.rgb; x.beginPath(); x.roundRect(cx - r, y - r, 2 * r, 2 * r, r * 0.45); x.fill();
     x.strokeStyle = "rgba(0,0,0,.18)"; x.lineWidth = 2; x.stroke();
     x.fillStyle = luma(c.rgb) > 0.6 ? "rgba(0,0,0,.7)" : "rgba(255,255,255,.92)";  // legend key
     x.font = "700 24px -apple-system, Roboto, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
-    x.fillText(String(keyOf[ci]), cx, cy + 1);
-  });
-  if (!withLegend) return;
-  let y = size + 40;
-  x.fillStyle = "#1d1d1f"; x.textAlign = "left"; x.textBaseline = "alphabetic";
-  x.font = "700 24px -apple-system, Roboto, sans-serif";
-  x.fillText(`${p.brand} · ${p.n}×${p.n} · ${total(leg)} beads`, pad, y);
-  y += 24;
-  leg.forEach(c => {
-    const cy = y + rowH / 2;
-    x.fillStyle = "#6b6b70"; x.font = "500 18px -apple-system, Roboto, sans-serif"; x.textAlign = "right";
-    x.fillText(String(c.key), pad + 22, cy + 6);
-    x.fillStyle = c.rgb; x.beginPath(); x.roundRect(pad + 32, cy - 14, 28, 28, 6); x.fill();
-    x.strokeStyle = "rgba(0,0,0,.2)"; x.lineWidth = 1; x.stroke();
-    x.textAlign = "left"; x.fillStyle = "#1d1d1f"; x.font = "700 20px -apple-system, Roboto, sans-serif";
-    x.fillText(c.code, pad + 72, cy + 7);
-    const w = x.measureText(c.code).width;
-    x.fillStyle = "#6b6b70"; x.font = "400 18px -apple-system, Roboto, sans-serif";
-    x.fillText(c.name, pad + 82 + w, cy + 7);
-    x.fillStyle = "#1d1d1f"; x.font = "700 20px -apple-system, Roboto, sans-serif"; x.textAlign = "right";
-    x.fillText("× " + c.count, size - pad, cy + 7);
-    y += rowH;
+    x.fillText(String(keyOf[ci]), cx, y + 1);
+    x.globalAlpha = 1;
   });
 }
 
-const total = leg => leg.reduce((s, c) => s + c.count, 0);
+function drawPattern(canvas, p, leg, t) {
+  const css = getComputedStyle(document.documentElement), size = boardSize(p);
+  if (canvas.width !== size) { canvas.width = size; canvas.height = size; }
+  const x = canvas.getContext("2d");
+  x.clearRect(0, 0, size, size);
+  drawBoard(x, 0, 0, p, leg, t, css.getPropertyValue("--board").trim(), css.getPropertyValue("--hole").trim());
+}
+
+// Saved image: always light (it may be printed). A window panel on the pattern's tint
+// with the board, then the bead list. Canvas units are 2x the page's, so text is 32 px.
+function drawSheet(canvas, p, leg) {
+  const INK = "#141412", MUTED = "#6a6a63", { tint, panel } = tints(leg, false);
+  const M = 48, B = 4, BAR = 48, IN = 24, ROW = 64, SH = 8;
+  const size = boardSize(p), W = size + 2 * (IN + B);
+  const listH = 80 + leg.length * ROW + 80;   // header, rows, total
+  const H = B + BAR + IN + size + listH + B;
+  canvas.width = W + 2 * M + SH; canvas.height = H + 2 * M + SH;
+  const x = canvas.getContext("2d"), X = M, Y = M;
+  x.fillStyle = tint; x.fillRect(0, 0, canvas.width, canvas.height);
+  x.fillStyle = INK; x.fillRect(X + SH, Y + SH, W, H);                         // hard shadow
+  x.fillRect(X, Y, W, H);
+  x.fillStyle = panel; x.fillRect(X + B, Y + B, W - 2 * B, H - 2 * B);
+  // striped title bar
+  x.fillStyle = INK; x.fillRect(X, Y + B + BAR, W, B);
+  for (let yy = Y + B + 8 + 5; yy < Y + B + BAR - 6; yy += 8) x.fillRect(X + B + 8, yy, W - 2 * B - 16, 3);
+  x.font = `32px ${FONT}`; x.textBaseline = "middle"; x.textAlign = "center";
+  const label = `${p.brand} pattern`, lw = x.measureText(label).width + 32;
+  x.fillStyle = panel; x.fillRect(X + (W - lw) / 2, Y + B + 6, lw, BAR - 12);
+  x.fillStyle = INK; x.fillText(label, X + W / 2, Y + B + BAR / 2 + 1);
+  // board
+  const by = Y + B + BAR + B + IN;
+  drawBoard(x, X + B + IN, by, p, leg, 1, "#ecebe7", "#d9d7d1");
+  // list
+  let y = by + size + 40;
+  const L = X + B + IN, R = X + W - B - IN;
+  x.font = `32px ${FONT}`; x.textBaseline = "middle";
+  x.textAlign = "left"; x.fillStyle = INK; x.fillText(`${p.n}×${p.n} board · ${total(leg)} beads`, L, y);
+  y += 40;
+  leg.forEach(c => {
+    const cy = y + ROW / 2;
+    x.fillStyle = "rgba(20,20,18,.14)"; x.fillRect(L, y, R - L, 2);
+    x.fillStyle = MUTED; x.textAlign = "right"; x.fillText(String(c.key), L + 40, cy);
+    x.fillStyle = INK; x.fillRect(L + 56, cy - 20, 40, 40);
+    x.fillStyle = c.rgb; x.fillRect(L + 58, cy - 18, 36, 36);
+    x.textAlign = "left"; x.fillStyle = INK; x.fillText(c.code, L + 116, cy);
+    const w = x.measureText(c.code).width;
+    x.fillStyle = MUTED; x.fillText(c.name, L + 136 + w, cy);
+    x.fillStyle = INK; x.textAlign = "right"; x.fillText("×" + c.count, R, cy);
+    y += ROW;
+  });
+  x.fillStyle = INK; x.fillRect(X, y + 4, W, B);
+  x.textAlign = "left"; x.fillText("Total", L, y + 40);
+  x.textAlign = "right"; x.fillText(`${total(leg)} beads`, R, y + 40);
+}
 
 function toast(msg) {
   const t = document.getElementById("toast");
@@ -164,7 +279,7 @@ function listText(p, leg) {
 
 async function saveImage(p, leg) {
   const c = document.createElement("canvas");
-  draw(c, p, leg, true);
+  drawSheet(c, p, leg);
   const blob = await new Promise(r => c.toBlob(r, "image/png"));
   const file = new File([blob], "bead-pattern.png", { type: "image/png" });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -182,51 +297,70 @@ async function copyList(p, leg) {
   catch { prompt("Copy the bead list:", text); }
 }
 
-function render() {
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+const win = (title, body) => `<div class="win"><div class="titlebar"><b>${title}</b></div>${body}</div>`;
+let anim = 0;
+
+function render(replay = true) {
   const app = document.getElementById("app");
+  cancelAnimationFrame(anim);
   let p = null;
   try { p = location.hash.length > 1 ? parse(location.hash) : null; } catch { p = null; }
   if (!p) {
-    document.getElementById("sub").textContent = "";
-    app.innerHTML = `<div class="card empty">${location.hash.length > 1
-      ? "This pattern link looks damaged. Scan the QR code on your bead pad again."
-      : "Scan the Export QR code on your bead pad to open a pattern here."}</div>`;
+    applyTint([]);
+    app.innerHTML = `<h1>Bead pattern</h1><p class="sub">&nbsp;</p>` + win("no pattern",
+      `<p class="empty">${location.hash.length > 1
+        ? "This pattern link looks damaged. Scan the QR code on your bead pad again."
+        : "Scan the Export QR code on your bead pad to open a pattern here."}</p>`);
     return;
   }
-  const leg = legend(p);
-  document.getElementById("title").textContent = `${p.brand} pattern`;
-  document.getElementById("sub").textContent =
-    `${p.n}×${p.n} board · ${total(leg)} beads · ${leg.length} colour${leg.length === 1 ? "" : "s"}`;
+  const leg = legend(p), tot = total(leg);
+  applyTint(leg);
+  document.title = `${p.brand} bead pattern`;
   app.innerHTML = `
-    <div class="card"><canvas id="pattern" aria-label="Bead pattern"></canvas></div>
-    <div class="actions">
-      <button class="primary" id="save">Save image</button>
-      <button id="copy">Copy bead list</button>
-    </div>
-    <div class="card">
-      <h2>Beads to order <span>${total(leg)}</span></h2>
-      ${leg.length ? "<ol id='leg'></ol>" : "<p class='empty'>No beads placed yet.</p>"}
+    <div class="left">${win("pattern.bead",
+      `<div class="body"><canvas id="pattern" role="img" aria-label="${esc(p.brand)} bead pattern"></canvas>
+       ${tot ? '<div class="hint">tap to drop the beads again</div>' : ""}</div>`)}</div>
+    <div class="right">
+      <h1>${esc(p.brand)} pattern</h1>
+      <p class="sub">${p.n}×${p.n} board · ${tot} beads · ${leg.length} colour${leg.length === 1 ? "" : "s"}</p>
+      <div class="actions">
+        <button class="primary" id="save"><span data-icon="disk"></span>Save image</button>
+        <button id="copy"><span data-icon="clip"></span>Copy list</button>
+      </div>
+      ${win("beads to order", leg.length ? `<ol>${leg.map(c => `<li><span class="key">${c.key}</span>
+          <span class="sw" style="background:${c.rgb}"></span><span>${esc(c.code)}</span>
+          <span class="name">${esc(c.name)}</span><span>×${c.count}</span></li>`).join("")}</ol>
+          <div class="total"><span>Total</span><span>${tot} beads</span></div>`
+        : `<p class="empty">No beads placed yet.</p>`)}
+      <footer><span data-icon="heart"></span>made on a bead pad</footer>
     </div>`;
-  draw(document.getElementById("pattern"), p, leg, false);
-  const ol = document.getElementById("leg");
-  leg.forEach(c => {
-    const li = document.createElement("li");
-    li.innerHTML = `<span class="key"></span><span class="sw"></span>
-      <span><span class="code"></span> <span class="name"></span></span><span class="count"></span>`;
-    li.querySelector(".key").textContent = c.key;
-    li.querySelector(".sw").style.background = c.rgb;
-    li.querySelector(".code").textContent = c.code;
-    li.querySelector(".name").textContent = c.name;
-    li.querySelector(".count").textContent = "× " + c.count;
-    ol && ol.appendChild(li);
-  });
+  icons(app);
+  const cv = document.getElementById("pattern");
+  const play = () => {
+    if (CALM.matches) { drawPattern(cv, p, leg, 1); return; }
+    let t0 = null;
+    const step = ts => {
+      t0 ??= ts;
+      const t = (ts - t0) / 1800;
+      drawPattern(cv, p, leg, t);
+      if (t < 1) anim = requestAnimationFrame(step); else drawPattern(cv, p, leg, 1);
+    };
+    cancelAnimationFrame(anim); anim = requestAnimationFrame(step);
+    // if frames are throttled (background tab, power saving), still end on the full board
+    clearTimeout(play.done); play.done = setTimeout(() => { cancelAnimationFrame(anim); drawPattern(cv, p, leg, 1); }, 2400);
+  };
+  if (replay) play(); else drawPattern(cv, p, leg, 1);
+  cv.onclick = play;
   document.getElementById("save").onclick = () => saveImage(p, leg);
   document.getElementById("copy").onclick = () => copyList(p, leg);
 }
 
-window.addEventListener("hashchange", render);
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
-render();
+icons(document);
+window.addEventListener("hashchange", () => render());
+DARK_MQ.addEventListener("change", () => render(false));
+// Wait for Chicago so the first paint (and the saved image) use it.
+document.fonts.load(`16px ${FONT}`).then(() => render(), () => render());
 </script>
 </body>
 </html>

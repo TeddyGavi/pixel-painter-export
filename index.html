@@ -99,7 +99,7 @@
 </head>
 <body>
 <main>
-  <div class="brandbar"><span data-icon="bead"></span><span>Bead Pad</span></div>
+  <div class="brandbar"><span data-icon="bead"></span><span>Pixel Painter</span></div>
   <div id="app"></div>
 </main>
 <div class="toast" id="toast" role="status"></div>
@@ -336,7 +336,7 @@ function render(replay = true) {
           <span class="name">${esc(c.name)}</span><span>×${c.count}</span></li>`).join("")}</ol>
           <div class="total"><span>Total</span><span>${tot} beads</span></div>`
         : `<p class="empty">No beads placed yet.</p>`)}
-      <footer><span data-icon="heart"></span>made on a bead pad</footer>
+      <footer><span data-icon="heart"></span>made on a pixel painter</footer>
     </div>`;
   icons(app);
   const cv = document.getElementById("pattern");

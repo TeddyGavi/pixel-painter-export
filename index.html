@@ -25,6 +25,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23141412' d='M2 0h4v1H2zM1 1h6v1H1zM0 2h3v1H0zM5 2h3v1H5zM0 3h2v2H0zM6 3h2v2H6zM0 5h3v1H0zM5 5h3v1H5zM1 6h6v1H1zM2 7h4v1H2z'/%3E%3C/svg%3E">
+<script>try { const t = localStorage.getItem("pp-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 <link rel="preload" href="ChicagoKare-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   @font-face { font-family: "Chicago"; src: url("ChicagoKare-Regular.woff2") format("woff2"); font-display: block; }
@@ -42,6 +43,13 @@
       --board: #2a2a2e; --hole: #3a3a40;
     }
   }
+  /* manual choice from the theme toggle (saved per browser) overrides the system */
+  :root[data-theme="dark"] {
+    --tint: #1b1d18; --panel: #22241f; --ink: #ecebe4; --muted: #a2a198; --rule: #ecebe41f;
+    --board: #2a2a2e; --hole: #3a3a40;
+  }
+  :root[data-theme="light"] { color-scheme: light; }
+  :root[data-theme="dark"] { color-scheme: dark; }
   * { box-sizing: border-box; }
   html { cursor: var(--cursor); }
   body { margin: 0; background: var(--tint); color: var(--ink); font: 16px/1.5 var(--font); }
@@ -49,6 +57,8 @@
 
   .brandbar { display: flex; align-items: center; gap: 8px; }
   .brandbar svg { width: 16px; height: 16px; }
+  .brandbar button.theme { flex: none; margin-left: auto; padding: 4px; box-shadow: 2px 2px 0 var(--ink); }
+  .brandbar button.theme:active { transform: translate(2px, 2px); box-shadow: none; }
   h1 { font: 32px/1.1 var(--font); margin: 24px 0 0; }
   .sub { color: var(--muted); margin: 0 0 16px; }
 
@@ -99,7 +109,8 @@
 </head>
 <body>
 <main>
-  <div class="brandbar"><span data-icon="bead"></span><span>Pixel Painter</span></div>
+  <div class="brandbar"><span data-icon="bead"></span><span>Pixel Painter</span>
+    <button class="theme" id="theme" type="button"></button></div>
   <div id="app"></div>
 </main>
 <div class="toast" id="toast" role="status"></div>
@@ -117,6 +128,8 @@ const ICONS = {
   bead: ["..####..", ".######.", "###..###", "##....##", "##....##", "###..###", ".######.", "..####.."],
   disk: ["#######.", "#.##.#.#", "#.##.#.#", "#.....##", "#......#", "#.####.#", "#.####.#", "########"],
   clip: ["..##..", "######", "#....#", "#.##.#", "#....#", "#.##.#", "#....#", "######"],
+  sun: ["...#....", ".#...#..", "..###...", "#.###.#.", "..###...", ".#...#..", "...#....", "........"],
+  moon: ["..####..", ".###....", "###.....", "###.....", "###.....", "###.....", ".###....", "..####.."],
   heart: [".##.##.", "#######", "#######", ".#####.", "..###..", "...#..."],
 };
 function icon(name) {
@@ -173,8 +186,25 @@ function tints(leg, dark) {
   const s = Math.min(s0, 0.7);
   return { tint: `hsl(${h} ${s * 22}% 13%)`, panel: `hsl(${h} ${s * 10}% 18%)` };
 }
+// Theme: the system setting unless the toggle has saved a choice.
+const THEME_KEY = "pp-theme";
+function savedTheme() { try { return localStorage.getItem(THEME_KEY); } catch { return null; } }
+const isDark = () => { const t = document.documentElement.dataset.theme; return t ? t === "dark" : DARK_MQ.matches; };
+function setTheme(t) {
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  const b = document.getElementById("theme"), dark = isDark();
+  b.innerHTML = icon(dark ? "sun" : "moon");
+  b.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+  b.title = b.getAttribute("aria-label");
+}
+function toggleTheme() {
+  const t = isDark() ? "light" : "dark";
+  try { t === (DARK_MQ.matches ? "dark" : "light") ? localStorage.removeItem(THEME_KEY) : localStorage.setItem(THEME_KEY, t); } catch {}
+  setTheme(t === (DARK_MQ.matches ? "dark" : "light") ? null : t);
+  render(false);
+}
 function applyTint(leg) {
-  const t = tints(leg, DARK_MQ.matches), st = document.documentElement.style;
+  const t = tints(leg, isDark()), st = document.documentElement.style;
   st.setProperty("--tint", t.tint); st.setProperty("--panel", t.panel);
 }
 
@@ -360,8 +390,10 @@ function render(replay = true) {
 }
 
 icons(document);
+setTheme(savedTheme());
+document.getElementById("theme").onclick = toggleTheme;
 window.addEventListener("hashchange", () => render());
-DARK_MQ.addEventListener("change", () => render(false));
+DARK_MQ.addEventListener("change", () => { setTheme(document.documentElement.dataset.theme); render(false); });
 // Wait for Chicago so the first paint (and the saved image) use it.
 document.fonts.load(`16px ${FONT}`).then(() => render(), () => render());
 </script>

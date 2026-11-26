@@ -313,8 +313,8 @@ function render(replay = true) {
     applyTint([]);
     app.innerHTML = `<h1>Bead pattern</h1><p class="sub">&nbsp;</p>` + win("no pattern",
       `<p class="empty">${location.hash.length > 1
-        ? "This pattern link looks damaged. Scan the QR code on your bead pad again."
-        : "Scan the Export QR code on your bead pad to open a pattern here."}</p>`);
+        ? "This pattern link looks damaged. Scan the QR code on your pixel painter again."
+        : "Scan the Export QR code on your pixel painter to open a pattern here."}</p>`);
     return;
   }
   const leg = legend(p), tot = total(leg);

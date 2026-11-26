@@ -21,7 +21,7 @@
 <meta property="og:image" content="https://teddygavi.github.io/pixel-painter-export/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="A pixel mushroom made of beads, next to the words Bead Pattern">
+<meta property="og:image:alt" content="Gingham bead charms on a red picnic cloth, next to the words Bead Pattern">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23141412' d='M2 0h4v1H2zM1 1h6v1H1zM0 2h3v1H0zM5 2h3v1H5zM0 3h2v2H0zM6 3h2v2H6zM0 5h3v1H0zM5 5h3v1H5zM1 6h6v1H1zM2 7h4v1H2z'/%3E%3C/svg%3E">
@@ -29,8 +29,9 @@
 <style>
   @font-face { font-family: "Chicago"; src: url("ChicagoKare-Regular.woff2") format("woff2"); font-display: block; }
   :root {
-    /* --tint and --panel are re-set from the pattern's most-used bead (applyTint) */
-    --tint: #d6dcc9; --panel: #fafbf6; --ink: #141412; --muted: #6a6a63; --rule: #14141224;
+    /* light: cream, the og.png card's background. Dark: --tint and --panel are re-set
+       from the pattern's most-used bead (applyTint) */
+    --tint: #f5edda; --panel: #fffaf0; --ink: #141412; --muted: #6a6a63; --rule: #14141224;
     --board: #ecebe7; --hole: #d9d7d1;
     --font: "Chicago", "Geneva", "Helvetica Neue", sans-serif;
     --cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1H0zM0 1h2v1H0zM0 2h3v1H0zM0 3h4v1H0zM0 4h5v1H0zM0 5h6v1H0zM0 6h7v1H0zM0 7h8v1H0zM0 8h5v1H0zM0 9h2v1H0zM3 9h2v1H3zM0 10h1v1H0zM4 10h2v1H4zM4 11h2v1H4z' fill='%23000'/%3E%3Cpath d='M1 2h1v1H1zM1 3h2v1H1zM1 4h3v1H1zM1 5h4v1H1zM1 6h5v1H1zM1 7h3v1H1z' fill='%23fff'/%3E%3C/svg%3E") 0 0, auto;
@@ -163,12 +164,14 @@ function hueSat(hex) {
   return [h * 60, d / (1 - Math.abs(2 * l - 1))];
 }
 
-// Background and panel tints: the most-used bead colour, heavily desaturated.
+// Background and panel tints. Light: always cream, matching og.png. Dark: the
+// most-used bead colour, heavily desaturated.
+const CREAM = { tint: "#f5edda", panel: "#fffaf0" };
 function tints(leg, dark) {
+  if (!dark) return CREAM;
   const [h, s0] = leg.length ? hueSat(leg[0].rgb) : [80, 0.25];   // no beads: soft sage
   const s = Math.min(s0, 0.7);
-  return dark ? { tint: `hsl(${h} ${s * 22}% 13%)`, panel: `hsl(${h} ${s * 10}% 18%)` }
-              : { tint: `hsl(${h} ${s * 34}% 86%)`, panel: `hsl(${h} ${s * 25}% 97.5%)` };
+  return { tint: `hsl(${h} ${s * 22}% 13%)`, panel: `hsl(${h} ${s * 10}% 18%)` };
 }
 function applyTint(leg) {
   const t = tints(leg, DARK_MQ.matches), st = document.documentElement.style;

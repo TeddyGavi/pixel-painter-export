@@ -32,7 +32,7 @@
   :root {
     /* light: cream, the og.png card's background. Dark: --tint and --panel are re-set
        from the pattern's most-used bead (applyTint) */
-    --tint: #f5edda; --panel: #fffaf0; --ink: #141412; --muted: #6a6a63; --rule: #14141224;
+    --tint: #f5edda; --panel: #fffaf0; --ink: #141412; --muted: #5c5c55; --rule: #14141224;
     --board: #ecebe7; --hole: #d9d7d1;
     --font: "Chicago", "Geneva", "Helvetica Neue", sans-serif;
     --cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1H0zM0 1h2v1H0zM0 2h3v1H0zM0 3h4v1H0zM0 4h5v1H0zM0 5h6v1H0zM0 6h7v1H0zM0 7h8v1H0zM0 8h5v1H0zM0 9h2v1H0zM3 9h2v1H3zM0 10h1v1H0zM4 10h2v1H4zM4 11h2v1H4z' fill='%23000'/%3E%3Cpath d='M1 2h1v1H1zM1 3h2v1H1zM1 4h3v1H1zM1 5h4v1H1zM1 6h5v1H1zM1 7h3v1H1z' fill='%23fff'/%3E%3C/svg%3E") 0 0, auto;
@@ -51,6 +51,12 @@
   :root[data-theme="light"] { color-scheme: light; }
   :root[data-theme="dark"] { color-scheme: dark; }
   * { box-sizing: border-box; }
+  /* keyboard focus: a thick ink ring, offset so it shows on the ink "primary" button too */
+  :focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+  .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+        clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  /* bead colours are the content: keep them in Windows high-contrast / forced-colours mode */
+  .sw, canvas { forced-color-adjust: none; }
   html { cursor: var(--cursor); }
   body { margin: 0; background: var(--tint); color: var(--ink); font: 16px/1.5 var(--font); }
   main { max-width: 480px; margin: 0 auto; padding: 16px 16px 32px; }
@@ -67,10 +73,14 @@
   .titlebar { height: 24px; border-bottom: 2px solid var(--ink); padding: 4px; display: flex; align-items: center;
               justify-content: center; background: repeating-linear-gradient(var(--panel) 0 3px, var(--ink) 3px 4px);
               background-clip: content-box; }
-  .titlebar b { background: var(--panel); padding: 0 8px; font-weight: normal; line-height: 16px; }
+  .titlebar h2 { background: var(--panel); padding: 0 8px; margin: 0; font: 16px/16px var(--font); }
   .win .body { padding: 12px; }
   canvas#pattern { display: block; width: 100%; height: auto; cursor: inherit; }
+  .boardbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 12px; }
+  .boardbar .hint { margin: 0; }
   .hint { color: var(--muted); text-align: center; margin-top: 8px; }
+  button.small { flex: none; padding: 4px 10px; box-shadow: 2px 2px 0 var(--ink); }
+  button.small:active { transform: translate(2px, 2px); box-shadow: none; }
 
   .actions { display: flex; gap: 12px; margin: 24px 0 8px; }
   button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; font: 16px var(--font);
@@ -86,7 +96,7 @@
   li:first-child { border-top: 0; }
   .key { color: var(--muted); text-align: right; }
   .sw { width: 24px; height: 24px; border: 1px solid var(--ink); }
-  .name { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .name { color: var(--muted); overflow-wrap: anywhere; }
   .total { display: flex; justify-content: space-between; padding: 8px 12px; border-top: 2px solid var(--ink); }
   .empty { text-align: center; color: var(--muted); padding: 32px 16px; }
   footer { text-align: center; color: var(--muted); margin-top: 32px; }
@@ -130,6 +140,8 @@ const ICONS = {
   clip: ["..##..", "######", "#....#", "#.##.#", "#....#", "#.##.#", "#....#", "######"],
   sun: ["...#....", ".#...#..", "..###...", "#.###.#.", "..###...", ".#...#..", "...#....", "........"],
   moon: ["..####..", ".###....", "###.....", "###.....", "###.....", "###.....", ".###....", "..####.."],
+  boxOn: ["########", "#......#", "#.####.#", "#.####.#", "#.####.#", "#.####.#", "#......#", "########"],
+  boxOff: ["########", "#......#", "#......#", "#......#", "#......#", "#......#", "#......#", "########"],
   heart: [".##.##.", "#######", "#######", ".#####.", "..###..", "...#..."],
 };
 function icon(name) {
@@ -164,10 +176,13 @@ function parse(hash) {
   return { key, brand: BRANDS[key] || key, n, colors, grid };
 }
 
-function luma(hex) {
+// WCAG relative luminance and the key-number colour with the better contrast
+function relLum(hex) {
   const v = parseInt(hex.slice(1), 16);
-  return (0.299 * (v >> 16) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255)) / 255;
+  const f = c => (c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  return 0.2126 * f(v >> 16) + 0.7152 * f((v >> 8) & 255) + 0.0722 * f(v & 255);
 }
+const keyInk = hex => (relLum(hex) + 0.05) / 0.05 >= 1.05 / (relLum(hex) + 0.05) ? "#000" : "#fff";
 function hueSat(hex) {
   const v = parseInt(hex.slice(1), 16);
   const r = (v >> 16) / 255, g = ((v >> 8) & 255) / 255, b = (v & 255) / 255;
@@ -194,14 +209,22 @@ function setTheme(t) {
   if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
   const b = document.getElementById("theme"), dark = isDark();
   b.innerHTML = icon(dark ? "sun" : "moon");
-  b.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
-  b.title = b.getAttribute("aria-label");
+  b.setAttribute("aria-label", "Dark mode");
+  b.setAttribute("aria-pressed", String(dark));
+  b.title = dark ? "Switch to light mode" : "Switch to dark mode";
 }
 function toggleTheme() {
   const t = isDark() ? "light" : "dark";
   try { t === (DARK_MQ.matches ? "dark" : "light") ? localStorage.removeItem(THEME_KEY) : localStorage.setItem(THEME_KEY, t); } catch {}
   setTheme(t === (DARK_MQ.matches ? "dark" : "light") ? null : t);
   render(false);
+}
+// Numbers on the beads: on unless this browser turned them off. The saved image always has them.
+const NUMS_KEY = "pp-numbers";
+let showNums = (() => { try { return localStorage.getItem(NUMS_KEY) !== "off"; } catch { return true; } })();
+function numsButton() {
+  return `<button class="small" id="nums" type="button" aria-pressed="${showNums}">` +
+         `<span data-icon="${showNums ? "boxOn" : "boxOff"}"></span>Numbers</button>`;
 }
 function applyTint(leg) {
   const t = tints(leg, isDark()), st = document.documentElement.style;
@@ -220,7 +243,7 @@ const total = leg => leg.reduce((s, c) => s + c.count, 0);
 // The board, drawn at (ox, oy) in 64 px cells. t = drop-in progress (>= 1: all beads in).
 const CELL = 64, PAD = 16;
 const boardSize = p => p.n * CELL + PAD * 2;
-function drawBoard(x, ox, oy, p, leg, t, board, hole) {
+function drawBoard(x, ox, oy, p, leg, t, board, hole, nums = true) {
   const size = boardSize(p), N = p.grid.length;
   const keyOf = {}; leg.forEach(c => keyOf[c.idx] = c.key);
   x.fillStyle = board; x.beginPath(); x.roundRect(ox, oy, size, size, 16); x.fill();
@@ -237,9 +260,11 @@ function drawBoard(x, ox, oy, p, leg, t, board, hole) {
     const c = p.colors[ci], r = CELL * 0.44;
     x.fillStyle = c.rgb; x.beginPath(); x.roundRect(cx - r, y - r, 2 * r, 2 * r, r * 0.45); x.fill();
     x.strokeStyle = "rgba(0,0,0,.18)"; x.lineWidth = 2; x.stroke();
-    x.fillStyle = luma(c.rgb) > 0.6 ? "rgba(0,0,0,.7)" : "rgba(255,255,255,.92)";  // legend key
-    x.font = "700 24px -apple-system, Roboto, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
-    x.fillText(String(keyOf[ci]), cx, y + 1);
+    if (nums) {
+      x.fillStyle = keyInk(c.rgb);  // legend key, black or white: whichever contrasts more
+      x.font = "700 24px -apple-system, Roboto, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
+      x.fillText(String(keyOf[ci]), cx, y + 1);
+    }
     x.globalAlpha = 1;
   });
 }
@@ -249,7 +274,7 @@ function drawPattern(canvas, p, leg, t) {
   if (canvas.width !== size) { canvas.width = size; canvas.height = size; }
   const x = canvas.getContext("2d");
   x.clearRect(0, 0, size, size);
-  drawBoard(x, 0, 0, p, leg, t, css.getPropertyValue("--board").trim(), css.getPropertyValue("--hole").trim());
+  drawBoard(x, 0, 0, p, leg, t, css.getPropertyValue("--board").trim(), css.getPropertyValue("--hole").trim(), showNums);
 }
 
 // Saved image: always light (it may be printed). A window panel on the pattern's tint
@@ -320,7 +345,7 @@ async function saveImage(p, leg) {
     catch (e) { if (e.name === "AbortError") return; }
   }
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
+  a.href = URL.createObjectURL(blob); a.download = file.name; a.click(); toast("Image saved");
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
 
@@ -331,12 +356,20 @@ async function copyList(p, leg) {
 }
 
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
-const win = (title, body) => `<div class="win"><div class="titlebar"><b>${title}</b></div>${body}</div>`;
+const win = (title, body) => `<section class="win"><div class="titlebar"><h2>${title}</h2></div>${body}</section>`;
+// The pattern as text, row by row, for screen readers (the canvas is only a picture)
+const boardLabel = (p, leg, tot) => `${p.brand} bead pattern, ${p.n} by ${p.n} board, ${tot} beads in ` +
+  `${leg.length} colour${leg.length === 1 ? "" : "s"}.` + (showNums ? " Each bead shows its number from the bead list." : "");
+const rowsText = (p, leg) => {
+  const keyOf = {}; leg.forEach(c => keyOf[c.idx] = c.key);
+  return Array.from({ length: p.n }, (_, r) => `<li>Row ${r + 1}: ` +
+    p.grid.slice(r * p.n, r * p.n + p.n).map(ci => ci < 0 ? "empty" : keyOf[ci]).join(", ") + "</li>").join("");
+};
 let anim = 0;
 
 function render(replay = true) {
   const app = document.getElementById("app");
-  cancelAnimationFrame(anim);
+  cancelAnimationFrame(anim); anim = 0;
   let p = null;
   try { p = location.hash.length > 1 ? parse(location.hash) : null; } catch { p = null; }
   if (!p) {
@@ -352,8 +385,9 @@ function render(replay = true) {
   document.title = `${p.brand} bead pattern`;
   app.innerHTML = `
     <div class="left">${win("pattern.bead",
-      `<div class="body"><canvas id="pattern" role="img" aria-label="${esc(p.brand)} bead pattern"></canvas>
-       ${tot ? '<div class="hint">tap to drop the beads again</div>' : ""}</div>`)}</div>
+      `<div class="body"><canvas id="pattern" role="img" aria-label="${esc(boardLabel(p, leg, tot))}"></canvas>
+       ${tot ? `<div class="boardbar">${numsButton()}<span class="hint" aria-hidden="true">tap to drop the beads again</span></div>` : ""}
+       <div class="sr"><h3>Pattern as text</h3><p>Bead numbers by row, left to right.</p><ol role="list">${rowsText(p, leg)}</ol></div></div>`)}</div>
     <div class="right">
       <h1>${esc(p.brand)} pattern</h1>
       <p class="sub">${p.n}×${p.n} board · ${tot} beads · ${leg.length} colour${leg.length === 1 ? "" : "s"}</p>
@@ -361,9 +395,9 @@ function render(replay = true) {
         <button class="primary" id="save"><span data-icon="disk"></span>Save image</button>
         <button id="copy"><span data-icon="clip"></span>Copy list</button>
       </div>
-      ${win("beads to order", leg.length ? `<ol>${leg.map(c => `<li><span class="key">${c.key}</span>
-          <span class="sw" style="background:${c.rgb}"></span><span>${esc(c.code)}</span>
-          <span class="name">${esc(c.name)}</span><span>×${c.count}</span></li>`).join("")}</ol>
+      ${win("beads to order", leg.length ? `<ol role="list">${leg.map(c => `<li><span class="key" aria-hidden="true">${c.key}</span>
+          <span class="sw" style="background:${c.rgb}"></span><span><span class="sr">Number ${c.key}: </span>${esc(c.code)}</span>
+          <span class="name">${esc(c.name)}</span><span><span aria-hidden="true">×${c.count}</span><span class="sr">, ${c.count} bead${c.count === 1 ? "" : "s"}</span></span></li>`).join("")}</ol>
           <div class="total"><span>Total</span><span>${tot} beads</span></div>`
         : `<p class="empty">No beads placed yet.</p>`)}
       <footer><span data-icon="heart"></span>made on a pixel painter</footer>
@@ -377,14 +411,23 @@ function render(replay = true) {
       t0 ??= ts;
       const t = (ts - t0) / 1800;
       drawPattern(cv, p, leg, t);
-      if (t < 1) anim = requestAnimationFrame(step); else drawPattern(cv, p, leg, 1);
+      if (t < 1) anim = requestAnimationFrame(step); else { anim = 0; drawPattern(cv, p, leg, 1); }
     };
     cancelAnimationFrame(anim); anim = requestAnimationFrame(step);
     // if frames are throttled (background tab, power saving), still end on the full board
-    clearTimeout(play.done); play.done = setTimeout(() => { cancelAnimationFrame(anim); drawPattern(cv, p, leg, 1); }, 2400);
+    clearTimeout(play.done); play.done = setTimeout(() => { cancelAnimationFrame(anim); anim = 0; drawPattern(cv, p, leg, 1); }, 2400);
   };
   if (replay) play(); else drawPattern(cv, p, leg, 1);
   cv.onclick = play;
+  const nb = document.getElementById("nums");
+  if (nb) nb.onclick = () => {
+    showNums = !showNums;
+    try { showNums ? localStorage.removeItem(NUMS_KEY) : localStorage.setItem(NUMS_KEY, "off"); } catch {}
+    nb.setAttribute("aria-pressed", String(showNums));
+    nb.querySelector("svg").outerHTML = icon(showNums ? "boxOn" : "boxOff");
+    cv.setAttribute("aria-label", boardLabel(p, leg, tot));
+    if (!anim) drawPattern(cv, p, leg, 1);   // mid-drop, the next frame picks it up
+  };
   document.getElementById("save").onclick = () => saveImage(p, leg);
   document.getElementById("copy").onclick = () => copyList(p, leg);
 }
